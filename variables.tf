@@ -25,7 +25,7 @@ variable "db_port" {
   default = 5432
 }
 variable "scale_set_instances" {
-  default = 1
+  default = 3
 }
 
 variable "admin_username" {
