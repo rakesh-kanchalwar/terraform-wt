@@ -35,3 +35,7 @@ variable "admin_username" {
 variable "admin_password" {
   default = ""
 }
+
+variable "vm_sku" {
+  default = "Standard_B1ms"
+}

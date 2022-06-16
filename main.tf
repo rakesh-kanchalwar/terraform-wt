@@ -27,11 +27,90 @@ resource "azurerm_subnet" "private_subnet" {
   resource_group_name  = azurerm_resource_group.rg.name
 }
 
-resource "azurerm_network_security_group" "public_nsg" {
-  name                = "btc_public_nsg"
+################################Load Balancer Configurations#############################################
+
+resource "azurerm_public_ip" "public_ip" {
+  name                = "btc_public_ip_address"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
+  allocation_method   = "Static"
+}
 
+resource "azurerm_lb" "lb" {
+  name                = "btc_lb"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku = "Basic"
+
+  frontend_ip_configuration {
+    name                 = "btc_public_ip"
+    public_ip_address_id = azurerm_public_ip.public_ip.id
+    subnet_id = azurerm_subnet.public_subnet.id
+  }
+}
+
+resource "azurerm_lb_backend_address_pool" "add_pool" {
+  name            = "btc_BackAddressPool"
+  loadbalancer_id = azurerm_lb.lb.id
+}
+
+resource "azurerm_lb_probe" "health_probe" {
+  loadbalancer_id = azurerm_lb.lb.id
+  name            = "${azurerm_lb.lb.name}_health_probe"
+  port            = var.application_port
+}
+
+resource "azurerm_lb_rule" "lb_rule" {
+  name                = "btc_lb_rule"
+  loadbalancer_id     = azurerm_lb.lb.id
+  backend_port        = var.application_port
+  frontend_port       = var.application_port
+  protocol            = "Tcp"
+  frontend_ip_configuration_name = azurerm_lb.lb.frontend_ip_configuration[0].name
+}
+
+#########################################################Create application VM
+resource "azurerm_linux_virtual_machine_scale_set" "lvm_app" {
+  name = "btc-app"
+  resource_group_name = azurerm_resource_group.rg.name
+  location = var.location
+  sku = var.vm_sku
+  instances = var.scale_set_instances
+  admin_username = var.admin_username
+  admin_password = var.admin_password
+  disable_password_authentication = false
+
+  os_disk {
+    caching = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer = "UbuntuServer"
+    sku = "18.04-LTS"
+    version = "18.04.202206090"
+  }
+
+  network_interface {
+    name = "public_nic"
+    primary = true
+    network_security_group_id = azurerm_network_security_group.public_nsg.id
+    ip_configuration {
+      name = "nic"
+      load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.add_pool.id]
+    }
+  }
+
+  health_probe_id = azurerm_lb_probe.health_probe.id
+
+  data_disk {
+    caching = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+    create_option        = "Empty"
+    disk_size_gb         = 16
+    lun                  = "30"
+  }
 }
 
 #########################################################Create DB VM
@@ -47,11 +126,11 @@ resource "azurerm_network_interface" "private_nic" {
   }
 }
 
-resource "azurerm_linux_virtual_machine" "lvm" {
+resource "azurerm_linux_virtual_machine" "lvm_db" {
   name                = "btc-db"
   resource_group_name = azurerm_resource_group.rg.name
   location            = var.location
-  size                = "Standard_B1ms"
+  size                = var.vm_sku
   admin_username      = var.admin_username
   admin_password      = var.admin_password
   disable_password_authentication = false
@@ -82,19 +161,29 @@ resource "azurerm_managed_disk" "m_disk" {
 
 resource "azurerm_virtual_machine_data_disk_attachment" "m_disk_attachment" {
   managed_disk_id    = azurerm_managed_disk.m_disk.id
-  virtual_machine_id = azurerm_linux_virtual_machine.lvm.id
+  virtual_machine_id = azurerm_linux_virtual_machine.lvm_db.id
   lun                = "10"
   caching            = "ReadWrite"
 }
 
 #####################################################Security Group
+###############Public
+resource "azurerm_network_security_group" "public_nsg" {
+  name = "btc_public_nsg"
+  resource_group_name = azurerm_resource_group.rg.name
+  location = var.location
+}
 
+
+
+
+###############Private
 resource "azurerm_network_security_group" "private_nsg" {
   name                = "btc_private_nsg"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  
 }
+
 resource "azurerm_network_security_rule" "allow_ssh" {
   name                        = "Allow SSH port"
   priority                    = 100
