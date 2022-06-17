@@ -31,14 +31,6 @@ variable "scale_set_instances" {
   default = 3
 }
 
-variable "admin_username" {
-  default = ""
-}
-
-variable "admin_password" {
-  default = ""
-}
-
 variable "vm_sku" {
   default = "Standard_B1ms"
 }
@@ -71,4 +63,14 @@ variable "image_sku" {
 
 variable "image_version" {
   default = "18.04.202206090"
+}
+
+variable "admin_username" {
+  default   = ""
+  sensitive = true
+}
+
+variable "admin_password" {
+  default   = ""
+  sensitive = true
 }

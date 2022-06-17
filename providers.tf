@@ -5,12 +5,12 @@ terraform {
   #      version = "=3.9.0"
   #    }
   #  }
-  #  backend "azurerm" {
-  #    resource_group_name  = "tfstate"
-  #    storage_account_name = "value"
-  #    container_name       = "value"
-  #    key                  = "value"
-  #  }
+  backend "azurerm" {
+    resource_group_name  = "tfstate-rg"
+    storage_account_name = "tfstatestorage17062022"
+    container_name       = "statecontainer"
+    key                  = "terraform.tfstate"
+  }
 }
 
 provider "azurerm" {

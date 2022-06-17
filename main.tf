@@ -71,13 +71,13 @@ resource "azurerm_lb_rule" "lb_rule" {
 }
 
 resource "azurerm_lb_nat_pool" "lb_nat_pool" {
-  name = "lb_nat_pool"
-  resource_group_name = azurerm_resource_group.rg.name
-  loadbalancer_id = azurerm_lb.lb.id
-  protocol = "Tcp"
-  frontend_port_start = 200
-  frontend_port_end = 202
-  backend_port = 22
+  name                           = "lb_nat_pool"
+  resource_group_name            = azurerm_resource_group.rg.name
+  loadbalancer_id                = azurerm_lb.lb.id
+  protocol                       = "Tcp"
+  frontend_port_start            = 200
+  frontend_port_end              = 202
+  backend_port                   = 22
   frontend_ip_configuration_name = azurerm_lb.lb.frontend_ip_configuration[0].name
 }
 
