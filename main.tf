@@ -53,11 +53,11 @@ resource "azurerm_lb_backend_address_pool" "add_pool" {
   loadbalancer_id = azurerm_lb.lb.id
 }
 
-#resource "azurerm_lb_probe" "health_probe" {
-#  loadbalancer_id = azurerm_lb.lb.id
-#  name            = "${azurerm_lb.lb.name}_health_probe"
-#  port            = var.application_port
-#}
+resource "azurerm_lb_probe" "health_probe" {
+  loadbalancer_id = azurerm_lb.lb.id
+  name            = "${azurerm_lb.lb.name}_health_probe"
+  port            = var.application_port
+}
 
 resource "azurerm_lb_rule" "lb_rule" {
   name                           = "btc_lb_rule"
@@ -66,8 +66,8 @@ resource "azurerm_lb_rule" "lb_rule" {
   frontend_port                  = var.application_port
   protocol                       = "Tcp"
   frontend_ip_configuration_name = azurerm_lb.lb.frontend_ip_configuration[0].name
-  #probe_id                       = azurerm_lb_probe.health_probe.id
-  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.add_pool.id]
+  probe_id                       = azurerm_lb_probe.health_probe.id
+  backend_address_pool_ids = [azurerm_lb_backend_address_pool.add_pool.id]
 }
 
 resource "azurerm_lb_nat_pool" "lb_nat_pool" {
@@ -111,6 +111,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "lvm_app" {
     ip_configuration {
       name                                   = "nic"
       load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.add_pool.id]
+      load_balancer_inbound_nat_rules_ids    = [azurerm_lb_nat_pool.lb_nat_pool.id]
       subnet_id                              = azurerm_subnet.public_subnet.id
     }
   }
@@ -215,7 +216,6 @@ resource "azurerm_network_security_rule" "pub_deny_http" {
   resource_group_name         = azurerm_resource_group.rg.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
 }
-
 
 ###############Private
 resource "azurerm_network_security_group" "private_nsg" {
