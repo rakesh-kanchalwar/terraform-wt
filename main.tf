@@ -27,7 +27,7 @@ resource "azurerm_public_ip" "public_ip" {
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
-  sku = "Standard"
+  sku                 = "Standard"
 }
 
 resource "azurerm_lb" "lb" {
@@ -48,7 +48,7 @@ resource "azurerm_lb_backend_address_pool" "add_pool" {
 }
 
 resource "azurerm_lb_backend_address_pool_address" "addr-pool-addr" {
-  count = var.scale_set_instances
+  count                   = var.scale_set_instances
   name                    = "backend-add-pool-add-${count.index}"
   backend_address_pool_id = azurerm_lb_backend_address_pool.add_pool.id
   virtual_network_id      = azurerm_virtual_network.vnet.id
@@ -84,7 +84,7 @@ resource "azurerm_lb_nat_rule" "lb_nat_rule" {
 }
 
 resource "azurerm_network_interface_nat_rule_association" "nat_rule_assoc" {
-  count = var.scale_set_instances
+  count                 = var.scale_set_instances
   network_interface_id  = azurerm_network_interface.public_nic[count.index].id
   ip_configuration_name = "public_nic_ip-${count.index}"
   nat_rule_id           = azurerm_lb_nat_rule.lb_nat_rule[count.index].id
@@ -172,8 +172,8 @@ resource "azurerm_network_security_rule" "pub_allow_ssh" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = var.ssh_port
-  source_address_prefix = "*"
-  destination_address_prefix  = "*"
+  source_address_prefix       = var.my_ip_address
+  destination_address_prefix  = var.public_subnet_address_space
   resource_group_name         = azurerm_resource_group.rg.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
 }
