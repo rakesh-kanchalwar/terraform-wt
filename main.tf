@@ -89,6 +89,12 @@ resource "azurerm_network_interface_nat_rule_association" "nat_rule_assoc" {
   ip_configuration_name = "public_nic_ip-${count.index}"
   nat_rule_id           = azurerm_lb_nat_rule.lb_nat_rule[count.index].id
 }
+#########################################################Create Password
+resource "random_password" "password" {
+  count = var.scale_set_instances
+  length = 12
+  special = false
+}
 #########################################################Create application VM
 resource "azurerm_availability_set" "avail_set" {
   name                = "vm-availability-set"
@@ -116,7 +122,7 @@ resource "azurerm_linux_virtual_machine" "lvm_app" {
   location                        = var.location
   size                            = var.vm_sku
   admin_username                  = var.admin_username
-  admin_password                  = var.admin_password
+  admin_password                  = random_password.password[count.index].result
   disable_password_authentication = false
 
   network_interface_ids = [azurerm_network_interface.public_nic[count.index].id]
@@ -174,6 +180,48 @@ resource "azurerm_network_security_rule" "pub_allow_ssh" {
   destination_port_range      = var.ssh_port
   source_address_prefix       = var.my_ip_address
   destination_address_prefix  = var.public_subnet_address_space
+  resource_group_name         = azurerm_resource_group.rg.name
+  network_security_group_name = azurerm_network_security_group.public_nsg.name
+}
+
+resource "azurerm_network_security_rule" "pub_allow_http" {
+  name                        = "Allow Http port"
+  priority                    = 200
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = var.http_port
+  source_address_prefix       = "*"
+  destination_address_prefix  = var.public_subnet_address_space
+  resource_group_name         = azurerm_resource_group.rg.name
+  network_security_group_name = azurerm_network_security_group.public_nsg.name
+}
+
+resource "azurerm_network_security_rule" "pub_deny_ssh" {
+  name                        = "Deny SSH from all"
+  priority                    = 300
+  direction                   = "Inbound"
+  access                      = "Deny"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "*"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.rg.name
+  network_security_group_name = azurerm_network_security_group.public_nsg.name
+}
+
+resource "azurerm_network_security_rule" "pub_deny_http" {
+  name                   = "Deny Http from all"
+  priority               = 400
+  direction              = "Inbound"
+  access                 = "Deny"
+  protocol               = "Tcp"
+  source_port_range      = "*"
+  destination_port_range = "*"
+  source_address_prefix  = "*"
+  destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.rg.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
 }

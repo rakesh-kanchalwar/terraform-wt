@@ -35,8 +35,9 @@ variable "vm_sku" {
   default = "Standard_B1ms"
 }
 
+# provide it on commandline or in *.tfvars file
 variable "my_ip_address" {
-  default = ""
+  default = "*"
 }
 variable "vnet_address_space" {
   default = "10.0.0.0/16"
@@ -65,11 +66,13 @@ variable "image_version" {
   default = "18.04.202206090"
 }
 
+# provide it on commandline or in *.tfvars file
 variable "admin_username" {
   default   = ""
   sensitive = true
 }
 
+# provide it on commandline or in *.tfvars file
 variable "admin_password" {
   default   = ""
   sensitive = true
