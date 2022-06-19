@@ -9,7 +9,7 @@ terraform {
     resource_group_name  = "tfstate-rg"
     storage_account_name = "tfstatestorage17062022"
     container_name       = "statecontainer"
-    key                  = "terraform.tfstate"
+    key                  = "terraform_bonus.tfstate"
   }
 }
 
