@@ -27,13 +27,14 @@ resource "azurerm_public_ip" "public_ip" {
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
+  sku                 = "Standard"
 }
 
 resource "azurerm_lb" "lb" {
   name                = "btc_lb_bonus"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  sku                 = "Basic"
+  sku                 = "Standard"
 
   frontend_ip_configuration {
     name                 = "btc_public_ip_bonus"
@@ -60,8 +61,9 @@ resource "azurerm_lb_rule" "lb_rule" {
   protocol                       = "Tcp"
   frontend_ip_configuration_name = azurerm_lb.lb.frontend_ip_configuration[0].name
   probe_id                       = azurerm_lb_probe.health_probe.id
-  backend_address_pool_ids = [azurerm_lb_backend_address_pool.add_pool.id]
+  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.add_pool.id]
 }
+
 
 resource "azurerm_lb_nat_pool" "lb_nat_pool" {
   name                           = "lb_nat_pool_bonus"
@@ -69,11 +71,19 @@ resource "azurerm_lb_nat_pool" "lb_nat_pool" {
   loadbalancer_id                = azurerm_lb.lb.id
   protocol                       = "Tcp"
   frontend_port_start            = 200
-  frontend_port_end              = 202
+  frontend_port_end              = 210
   backend_port                   = 22
   frontend_ip_configuration_name = azurerm_lb.lb.frontend_ip_configuration[0].name
 }
-
+#########################################################Create Password
+resource "random_password" "password" {
+  count   = var.scale_set_instances
+  length  = 12
+  special = false
+  upper = true
+  lower = true
+  number = true
+}
 #########################################################Create application VM
 resource "azurerm_linux_virtual_machine_scale_set" "lvm_app" {
   name                            = "btc-app-bonus"
@@ -100,7 +110,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "lvm_app" {
   network_interface {
     name                      = "public_nic_bonus"
     primary                   = true
-    network_security_group_id = azurerm_network_security_group.public_nsg.id
+    #network_security_group_id = azurerm_network_security_group.public_nsg.id
     ip_configuration {
       name                                   = "nic-bonus"
       load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.add_pool.id]
@@ -109,7 +119,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "lvm_app" {
     }
   }
 
-  #health_probe_id = azurerm_lb_probe.health_probe.id
+  health_probe_id = azurerm_lb_probe.health_probe.id
 
   data_disk {
     caching              = "ReadWrite"
@@ -118,15 +128,6 @@ resource "azurerm_linux_virtual_machine_scale_set" "lvm_app" {
     disk_size_gb         = 16
     lun                  = "30"
   }
-}
-
-
-
-resource "azurerm_virtual_machine_data_disk_attachment" "m_disk_attachment" {
-  managed_disk_id    = azurerm_managed_disk.m_disk.id
-  virtual_machine_id = azurerm_linux_virtual_machine.lvm_db.id
-  lun                = "10"
-  caching            = "ReadWrite"
 }
 
 #####################################################Security Group

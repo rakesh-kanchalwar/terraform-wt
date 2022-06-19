@@ -15,7 +15,7 @@ variable "private_sub_name" {
 }
 
 variable "application_port" {
-  default = 8081
+  default = 8080
 }
 
 variable "ssh_port" {
@@ -25,7 +25,7 @@ variable "db_port" {
   default = 5432
 }
 variable "http_port" {
-  default = 8081
+  default = 8080
 }
 variable "scale_set_instances" {
   default = 3
