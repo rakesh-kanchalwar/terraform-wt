@@ -164,32 +164,22 @@ resource "azurerm_network_security_group" "public_nsg" {
   location            = var.location
 }
 
-resource "azurerm_network_security_rule" "pub_deny_ssh" {
-  name                        = "Deny SSH from all"
-  priority                    = 300
+resource "azurerm_network_security_rule" "pub_allow_ssh" {
+  name                        = "Allow SSH port"
+  priority                    = 100
   direction                   = "Inbound"
-  access                      = "Deny"
+  access                      = "Allow"
   protocol                    = "Tcp"
   source_port_range           = "*"
-  destination_port_range      = "*"
-  source_address_prefix       = "*"
+  destination_port_range      = var.ssh_port
+  source_address_prefix = "*"
   destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.rg.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
 }
 
-resource "azurerm_network_security_rule" "pub_deny_http" {
-  name                   = "Deny http from all"
-  priority               = 400
-  direction              = "Inbound"
-  access                 = "Deny"
-  protocol               = "Tcp"
-  source_port_range      = "*"
-  destination_port_range = "*"
-  source_address_prefix  = "*"
-
-  destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.rg.name
-  network_security_group_name = azurerm_network_security_group.public_nsg.name
+resource "azurerm_subnet_network_security_group_association" "public_subnet_sg" {
+  subnet_id                 = azurerm_subnet.public_subnet.id
+  network_security_group_id = azurerm_network_security_group.public_nsg.id
 }
 
