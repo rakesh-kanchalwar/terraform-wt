@@ -1,23 +1,21 @@
-########################################### Create resource group
-resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
-  location = var.location
-  tags     = { "name" = "resource_group", "env" = "bootcamp" }
+module "rg" {
+  source              = "./modules/resource_group"
+  resource_group_name = var.resource_group_name
+  location            = var.location
 }
-
 ########################################### Create virtual network
 resource "azurerm_virtual_network" "vnet" {
   name                = var.virtual_network
   address_space       = [var.vnet_address_space]
   location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = module.rg.resource_group.name
 }
 
 resource "azurerm_subnet" "public_subnet" {
   name                 = var.public_sub_name
   address_prefixes     = [var.public_subnet_address_space]
   virtual_network_name = azurerm_virtual_network.vnet.name
-  resource_group_name  = azurerm_resource_group.rg.name
+  resource_group_name  = module.rg.resource_group.name
 }
 
 ################################Load Balancer Configurations#############################################
@@ -25,7 +23,7 @@ resource "azurerm_subnet" "public_subnet" {
 resource "azurerm_public_ip" "public_ip" {
   name                = "btc_public_ip_address"
   location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = module.rg.resource_group.name
   allocation_method   = "Static"
   sku                 = "Standard"
 }
@@ -33,7 +31,7 @@ resource "azurerm_public_ip" "public_ip" {
 resource "azurerm_lb" "lb" {
   name                = "btc_lb"
   location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = module.rg.resource_group.name
   sku                 = "Standard"
 
   frontend_ip_configuration {
@@ -75,7 +73,7 @@ resource "azurerm_lb_rule" "lb_rule" {
 resource "azurerm_lb_nat_rule" "lb_nat_rule" {
   count                          = var.scale_set_instances
   name                           = "lb_nat_rule-${count.index}"
-  resource_group_name            = azurerm_resource_group.rg.name
+  resource_group_name            = module.rg.resource_group.name
   loadbalancer_id                = azurerm_lb.lb.id
   protocol                       = "Tcp"
   frontend_ip_configuration_name = azurerm_lb.lb.frontend_ip_configuration[0].name
@@ -91,22 +89,25 @@ resource "azurerm_network_interface_nat_rule_association" "nat_rule_assoc" {
 }
 #########################################################Create Password
 resource "random_password" "password" {
-  count = var.scale_set_instances
-  length = 12
+  count   = var.scale_set_instances
+  length  = 12
   special = false
+  upper   = true
+  lower   = true
+  number  = true
 }
 #########################################################Create application VM
 resource "azurerm_availability_set" "avail_set" {
   name                = "vm-availability-set"
   location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = module.rg.resource_group.name
 }
 
 resource "azurerm_network_interface" "public_nic" {
   count               = var.scale_set_instances
   name                = "public_nic-${count.index}"
   location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = module.rg.resource_group.name
 
   ip_configuration {
     name                          = "public_nic_ip-${count.index}"
@@ -118,7 +119,7 @@ resource "azurerm_network_interface" "public_nic" {
 resource "azurerm_linux_virtual_machine" "lvm_app" {
   count                           = var.scale_set_instances
   name                            = "btc-app-${count.index}"
-  resource_group_name             = azurerm_resource_group.rg.name
+  resource_group_name             = module.rg.resource_group.name
   location                        = var.location
   size                            = var.vm_sku
   admin_username                  = var.admin_username
@@ -147,7 +148,7 @@ resource "azurerm_managed_disk" "m_app_disk" {
   count                = var.scale_set_instances
   name                 = "managed_app_disk-${count.index}"
   location             = var.location
-  resource_group_name  = azurerm_resource_group.rg.name
+  resource_group_name  = module.rg.resource_group.name
   storage_account_type = "Standard_LRS"
   create_option        = "Empty"
   disk_size_gb         = 16
@@ -166,7 +167,7 @@ resource "azurerm_virtual_machine_data_disk_attachment" "m_app_disk_attachment" 
 ###############Public
 resource "azurerm_network_security_group" "public_nsg" {
   name                = "btc_public_nsg"
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = module.rg.resource_group.name
   location            = var.location
 }
 
@@ -180,7 +181,7 @@ resource "azurerm_network_security_rule" "pub_allow_ssh" {
   destination_port_range      = var.ssh_port
   source_address_prefix       = var.my_ip_address
   destination_address_prefix  = var.public_subnet_address_space
-  resource_group_name         = azurerm_resource_group.rg.name
+  resource_group_name         = module.rg.resource_group.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
 }
 
@@ -194,7 +195,7 @@ resource "azurerm_network_security_rule" "pub_allow_http" {
   destination_port_range      = var.http_port
   source_address_prefix       = "*"
   destination_address_prefix  = var.public_subnet_address_space
-  resource_group_name         = azurerm_resource_group.rg.name
+  resource_group_name         = module.rg.resource_group.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
 }
 
@@ -208,21 +209,21 @@ resource "azurerm_network_security_rule" "pub_deny_ssh" {
   destination_port_range      = "*"
   source_address_prefix       = "*"
   destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.rg.name
+  resource_group_name         = module.rg.resource_group.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
 }
 
 resource "azurerm_network_security_rule" "pub_deny_http" {
-  name                   = "Deny Http from all"
-  priority               = 400
-  direction              = "Inbound"
-  access                 = "Deny"
-  protocol               = "Tcp"
-  source_port_range      = "*"
-  destination_port_range = "*"
-  source_address_prefix  = "*"
+  name                        = "Deny Http from all"
+  priority                    = 400
+  direction                   = "Inbound"
+  access                      = "Deny"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "*"
+  source_address_prefix       = "*"
   destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.rg.name
+  resource_group_name         = module.rg.resource_group.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
 }
 

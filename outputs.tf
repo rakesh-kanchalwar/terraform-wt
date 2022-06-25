@@ -3,21 +3,16 @@ output "public_ip" {
 }
 
 output "password_0" {
-  value = random_password.password[0].result
+  value     = random_password.password[0].result
   sensitive = true
 }
 
 output "password_1" {
-  value = random_password.password[1].result
+  value     = random_password.password[1].result
   sensitive = true
 }
 
 output "password_2" {
-  value = random_password.password[2].result
-  sensitive = true
-}
-
-output "password_db" {
-  value = random_password.password_db.result
+  value     = random_password.password[2].result
   sensitive = true
 }

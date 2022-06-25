@@ -1,5 +1,8 @@
+variable "environment" {
+  default = "stage"
+}
 variable "resource_group_name" {
-  default = "btc_resource_group"
+  default = "btc_rg"
 }
 variable "virtual_network" {
   default = "btc_vn"
@@ -74,6 +77,19 @@ variable "admin_username" {
 
 # provide it on commandline or in *.tfvars file
 variable "admin_password" {
+  default   = ""
+  sensitive = true
+}
+
+
+# provide it on commandline or in *.tfvars file
+variable "db_admin_login" {
+  default   = ""
+  sensitive = true
+}
+
+# provide it on commandline or in *.tfvars file
+variable "db_admin_password" {
   default   = ""
   sensitive = true
 }
