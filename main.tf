@@ -70,22 +70,39 @@ resource "azurerm_lb_rule" "lb_rule" {
   backend_address_pool_ids       = [azurerm_lb_backend_address_pool.add_pool.id]
 }
 
-resource "azurerm_lb_nat_rule" "lb_nat_rule" {
+resource "azurerm_lb_nat_rule" "lb_nat_rule_1" {
   count                          = var.scale_set_instances
-  name                           = "lb_nat_rule-${count.index}"
+  name                           = "lb_nat_rule_1-${count.index}"
   resource_group_name            = module.rg.resource_group.name
   loadbalancer_id                = azurerm_lb.lb.id
   protocol                       = "Tcp"
   frontend_ip_configuration_name = azurerm_lb.lb.frontend_ip_configuration[0].name
-  frontend_port                  = "20${count.index}"
-  backend_port                   = 22
+  frontend_port                  = "5985${count.index}"
+  backend_port                   = 5985
 }
 
-resource "azurerm_network_interface_nat_rule_association" "nat_rule_assoc" {
+resource "azurerm_network_interface_nat_rule_association" "nat_rule_assoc_1" {
   count                 = var.scale_set_instances
   network_interface_id  = azurerm_network_interface.public_nic[count.index].id
   ip_configuration_name = "public_nic_ip-${count.index}"
-  nat_rule_id           = azurerm_lb_nat_rule.lb_nat_rule[count.index].id
+  nat_rule_id           = azurerm_lb_nat_rule.lb_nat_rule_1[count.index].id
+}
+resource "azurerm_lb_nat_rule" "lb_nat_rule_2" {
+  count                          = var.scale_set_instances
+  name                           = "lb_nat_rule_2-${count.index}"
+  resource_group_name            = module.rg.resource_group.name
+  loadbalancer_id                = azurerm_lb.lb.id
+  protocol                       = "Tcp"
+  frontend_ip_configuration_name = azurerm_lb.lb.frontend_ip_configuration[0].name
+  frontend_port                  = "5986${count.index}"
+  backend_port                   = 5986
+}
+
+resource "azurerm_network_interface_nat_rule_association" "nat_rule_assoc_2" {
+  count                 = var.scale_set_instances
+  network_interface_id  = azurerm_network_interface.public_nic[count.index].id
+  ip_configuration_name = "public_nic_ip-${count.index}"
+  nat_rule_id           = azurerm_lb_nat_rule.lb_nat_rule_2[count.index].id
 }
 #########################################################Create Password
 resource "random_password" "password" {
@@ -116,15 +133,14 @@ resource "azurerm_network_interface" "public_nic" {
   }
 }
 
-resource "azurerm_linux_virtual_machine" "lvm_app" {
-  count                           = var.scale_set_instances
+resource "azurerm_windows_virtual_machine" "wvm_app" {
+    count                           = var.scale_set_instances
   name                            = "btc-app-${count.index}"
   resource_group_name             = module.rg.resource_group.name
   location                        = var.location
   size                            = var.vm_sku
   admin_username                  = var.admin_username
   admin_password                  = random_password.password[count.index].result
-  disable_password_authentication = false
 
   network_interface_ids = [azurerm_network_interface.public_nic[count.index].id]
 
@@ -134,14 +150,12 @@ resource "azurerm_linux_virtual_machine" "lvm_app" {
   }
 
   source_image_reference {
-    publisher = var.image_publisher
-    offer     = var.image_offer
-    sku       = var.image_sku
-    version   = var.image_version
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2016-Datacenter"
+    version   = "latest"
   }
-
   availability_set_id = azurerm_availability_set.avail_set.id
-
 }
 
 resource "azurerm_managed_disk" "m_app_disk" {
@@ -157,7 +171,7 @@ resource "azurerm_managed_disk" "m_app_disk" {
 resource "azurerm_virtual_machine_data_disk_attachment" "m_app_disk_attachment" {
   count              = var.scale_set_instances
   managed_disk_id    = azurerm_managed_disk.m_app_disk.*.id[count.index]
-  virtual_machine_id = azurerm_linux_virtual_machine.lvm_app[count.index].id
+  virtual_machine_id = azurerm_windows_virtual_machine.wvm_app[count.index].id
   lun                = "10"
   caching            = "ReadWrite"
 }
@@ -194,6 +208,34 @@ resource "azurerm_network_security_rule" "pub_allow_http" {
   source_port_range           = "*"
   destination_port_range      = var.http_port
   source_address_prefix       = "*"
+  destination_address_prefix  = var.public_subnet_address_space
+  resource_group_name         = module.rg.resource_group.name
+  network_security_group_name = azurerm_network_security_group.public_nsg.name
+}
+
+resource "azurerm_network_security_rule" "pub_allow_5985" {
+  name                        = "Allow 5985 port"
+  priority                    = 210
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = 5985
+  source_address_prefix       = var.my_ip_address
+  destination_address_prefix  = var.public_subnet_address_space
+  resource_group_name         = module.rg.resource_group.name
+  network_security_group_name = azurerm_network_security_group.public_nsg.name
+}
+
+resource "azurerm_network_security_rule" "pub_allow_5986" {
+  name                        = "Allow 5986 port"
+  priority                    = 220
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = 5986
+  source_address_prefix       = var.my_ip_address
   destination_address_prefix  = var.public_subnet_address_space
   resource_group_name         = module.rg.resource_group.name
   network_security_group_name = azurerm_network_security_group.public_nsg.name
